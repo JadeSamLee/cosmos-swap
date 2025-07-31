@@ -41,6 +41,7 @@ contract EscrowSrc is Escrow, IEscrowSrc {
         onlyAfter(immutables.timelocks.get(TimelocksLib.Stage.SrcWithdrawal))
         onlyBefore(immutables.timelocks.get(TimelocksLib.Stage.SrcCancellation))
     {
+        // Integrate HTLC logic here if needed
         _withdrawTo(secret, msg.sender, immutables);
     }
 
@@ -85,6 +86,7 @@ contract EscrowSrc is Escrow, IEscrowSrc {
         onlyTaker(immutables)
         onlyAfter(immutables.timelocks.get(TimelocksLib.Stage.SrcCancellation))
     {
+        // Integrate HTLC refund logic here if needed
         _cancel(immutables);
     }
 
