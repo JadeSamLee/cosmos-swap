@@ -51,19 +51,22 @@ func (msg *MsgCreateHTLC) GetSignBytes() []byte {
 }
 func (msg *MsgCreateHTLC) ValidateBasic() error {
 	if msg.Sender.Empty() {
-		return fmt.Errorf("sender cannot be empty")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "sender cannot be empty")
 	}
 	if msg.Receiver.Empty() {
-		return fmt.Errorf("receiver cannot be empty")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "receiver cannot be empty")
 	}
 	if !msg.Amount.IsAllPositive() {
-		return fmt.Errorf("amount must be positive")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidCoins, "amount must be positive")
 	}
 	if len(msg.HashLock) == 0 {
-		return fmt.Errorf("hash lock cannot be empty")
+		return ErrInvalidHashLock
+	}
+	if len(msg.HashLock) != 32 {
+		return ErrInvalidHashLock
 	}
 	if msg.TimeLock <= 0 {
-		return fmt.Errorf("time lock must be positive unix timestamp")
+		return ErrInvalidTimeLock
 	}
 	return nil
 }
@@ -96,13 +99,13 @@ func (msg *MsgClaimHTLC) GetSignBytes() []byte {
 }
 func (msg *MsgClaimHTLC) ValidateBasic() error {
 	if msg.Claimer.Empty() {
-		return fmt.Errorf("claimer cannot be empty")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "claimer cannot be empty")
 	}
 	if msg.HTLCId == 0 {
-		return fmt.Errorf("htlc id cannot be zero")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "htlc id cannot be zero")
 	}
 	if len(msg.Preimage) == 0 {
-		return fmt.Errorf("preimage cannot be empty")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "preimage cannot be empty")
 	}
 	return nil
 }
@@ -133,10 +136,10 @@ func (msg *MsgRefundHTLC) GetSignBytes() []byte {
 }
 func (msg *MsgRefundHTLC) ValidateBasic() error {
 	if msg.Refunder.Empty() {
-		return fmt.Errorf("refunder cannot be empty")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, "refunder cannot be empty")
 	}
 	if msg.HTLCId == 0 {
-		return fmt.Errorf("htlc id cannot be zero")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "htlc id cannot be zero")
 	}
 	return nil
 }

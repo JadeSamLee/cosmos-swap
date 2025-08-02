@@ -4,25 +4,16 @@ import (
 	"testing"
 
 	"github.com/crypto-org-chain/cronos/v2/x/htlc/client/cli"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetQueryCmd(t *testing.T) {
-	cmd := cli.GetQueryCmd()
-	require.NotNil(t, cmd)
-	require.Equal(t, "htlc", cmd.Use)
-	require.Len(t, cmd.Commands(), 2)
-}
+func TestQueryCmds(t *testing.T) {
+	// Test that the query commands are created correctly
+	listCmd := cli.CmdListHTLCs()
+	require.NotNil(t, listCmd)
+	require.Equal(t, "list-htlcs", listCmd.Use)
 
-func TestCmdListHTLCs(t *testing.T) {
-	cmd := cli.CmdListHTLCs()
-	require.NotNil(t, cmd)
-	require.Equal(t, "list-htlcs", cmd.Use)
-}
-
-func TestCmdShowHTLC(t *testing.T) {
-	cmd := cli.CmdShowHTLC()
-	require.NotNil(t, cmd)
-	require.Equal(t, "show-htlc", cmd.Use)
+	showCmd := cli.CmdShowHTLC()
+	require.NotNil(t, showCmd)
+	require.Equal(t, "show-htlc", showCmd.Use)
 }

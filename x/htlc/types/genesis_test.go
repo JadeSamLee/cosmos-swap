@@ -9,21 +9,42 @@ import (
 )
 
 func TestGenesisState_Validate(t *testing.T) {
-	genesis := types.DefaultGenesis()
-	err := genesis.Validate()
-	require.NoError(t, err)
-
-	htlc := types.HTLC{
-		Id:       1,
-		Sender:   nil,
-		Receiver: nil,
-		Amount:   nil,
-		HashLock: []byte{},
-		TimeLock: time.Now(),
-		Claimed:  false,
-		Refunded: false,
+	for _, tc := range []struct {
+		desc     string
+		genState *types.GenesisState
+		valid    bool
+	}{
+		{
+			desc:     "default is valid",
+			genState: types.DefaultGenesis(),
+			valid:    true,
+		},
+		{
+			desc: "valid genesis state",
+			genState: &types.GenesisState{
+				HTLCs: []types.HTLC{
+					{
+						Id:       1,
+						Sender:   []byte("sender"),
+						Receiver: []byte("receiver"),
+						Amount:   nil,
+						HashLock: []byte("hashlock"),
+						TimeLock: time.Now().Add(time.Hour),
+						Claimed:  false,
+						Refunded: false,
+					},
+				},
+			},
+			valid: true,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			err := tc.genState.Validate()
+			if tc.valid {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
 	}
-	genesis.HTLCs = append(genesis.HTLCs, htlc)
-	err = genesis.Validate()
-	require.NoError(t, err)
 }

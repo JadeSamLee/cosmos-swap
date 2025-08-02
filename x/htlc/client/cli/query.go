@@ -30,7 +30,8 @@ func GetQueryCmd() *cobra.Command {
 func CmdListHTLCs() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list-htlcs",
-		Short: "list all HTLCs",
+		Short: "List all HTLCs",
+		Long:  "List all HTLCs in the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
@@ -56,7 +57,8 @@ func CmdListHTLCs() *cobra.Command {
 func CmdShowHTLC() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show-htlc [id]",
-		Short: "shows a HTLC",
+		Short: "Show a HTLC",
+		Long:  "Show details of a specific HTLC by ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
