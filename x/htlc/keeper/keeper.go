@@ -13,6 +13,20 @@ import (
 	storetypes "cosmossdk.io/store/types"
 )
 
+// Event types
+const (
+	EventTypeCreateHTLC = "create_htlc"
+	EventTypeClaimHTLC  = "claim_htlc"
+	EventTypeRefundHTLC = "refund_htlc"
+
+	AttributeKeySender    = "sender"
+	AttributeKeyReceiver  = "receiver"
+	AttributeKeyHTLCID    = "htlc_id"
+	AttributeKeyAmount    = "amount"
+	AttributeKeyHashLock = "hash_lock"
+	AttributeKeyTimeLock  = "time_lock"
+)
+
 type Keeper struct {
 	storeKey   storetypes.StoreKey
 	cdc        codec.BinaryCodec
@@ -51,15 +65,15 @@ func (k Keeper) DeleteHTLC(ctx sdk.Context, id uint64) {
 
 func (k Keeper) CreateHTLC(ctx sdk.Context, sender, receiver sdk.AccAddress, amount sdk.Coins, hashLock []byte, timeLock int64) (uint64, error) {
 	if len(hashLock) != sha256.Size {
-		return 0, fmt.Errorf("hashLock must be sha256 hash")
+		return 0, types.ErrInvalidHashLock
 	}
 	if timeLock <= ctx.BlockTime().Unix() {
-		return 0, fmt.Errorf("timeLock must be in the future")
+		return 0, types.ErrInvalidTimeLock
 	}
 
 	// send coins from sender to module account to lock
 	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, sender, types.ModuleName, amount); err != nil {
-		return 0, fmt.Errorf("failed to lock coins: %w", err)
+		return 0, err
 	}
 
 	id := k.GetNextHTLCId(ctx)
@@ -76,28 +90,42 @@ func (k Keeper) CreateHTLC(ctx sdk.Context, sender, receiver sdk.AccAddress, amo
 
 	k.SetHTLC(ctx, htlc)
 	k.IncrementNextHTLCId(ctx)
+
+	// Emit event
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			EventTypeCreateHTLC,
+			sdk.NewAttribute(AttributeKeySender, sender.String()),
+			sdk.NewAttribute(AttributeKeyReceiver, receiver.String()),
+			sdk.NewAttribute(AttributeKeyHTLCID, fmt.Sprintf("%d", id)),
+			sdk.NewAttribute(AttributeKeyAmount, amount.String()),
+			sdk.NewAttribute(AttributeKeyHashLock, fmt.Sprintf("%x", hashLock)),
+			sdk.NewAttribute(AttributeKeyTimeLock, time.Unix(timeLock, 0).String()),
+		),
+	)
+
 	return id, nil
 }
 
 func (k Keeper) ClaimHTLC(ctx sdk.Context, id uint64, preimage []byte, claimer sdk.AccAddress) error {
 	htlc, found := k.GetHTLC(ctx, id)
 	if !found {
-		return fmt.Errorf("htlc not found")
+		return types.ErrHTLCNotFound
 	}
 	if htlc.Claimed {
-		return fmt.Errorf("htlc already claimed")
+		return types.ErrHTLCClaimed
 	}
 	if htlc.Refunded {
-		return fmt.Errorf("htlc already refunded")
+		return types.ErrHTLCRefunded
 	}
 	if !bytes.Equal(sha256.Sum256(preimage)[:], htlc.HashLock) {
-		return fmt.Errorf("invalid preimage")
+		return types.ErrInvalidPreimage
 	}
 	if !claimer.Equals(htlc.Receiver) {
-		return fmt.Errorf("only receiver can claim")
+		return types.ErrUnauthorizedClaimer
 	}
 	if ctx.BlockTime().After(htlc.TimeLock) {
-		return fmt.Errorf("htlc expired")
+		return types.ErrHTLCExpired
 	}
 
 	htlc.Claimed = true
@@ -105,8 +133,18 @@ func (k Keeper) ClaimHTLC(ctx sdk.Context, id uint64, preimage []byte, claimer s
 
 	// transfer coins to receiver
 	if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, htlc.Receiver, htlc.Amount); err != nil {
-		return fmt.Errorf("failed to send coins to receiver: %w", err)
+		return err
 	}
+
+	// Emit event
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			EventTypeClaimHTLC,
+			sdk.NewAttribute(AttributeKeyHTLCID, fmt.Sprintf("%d", id)),
+			sdk.NewAttribute(AttributeKeyReceiver, claimer.String()),
+			sdk.NewAttribute(AttributeKeyAmount, htlc.Amount.String()),
+		),
+	)
 
 	return nil
 }
@@ -114,19 +152,19 @@ func (k Keeper) ClaimHTLC(ctx sdk.Context, id uint64, preimage []byte, claimer s
 func (k Keeper) RefundHTLC(ctx sdk.Context, id uint64, refunder sdk.AccAddress) error {
 	htlc, found := k.GetHTLC(ctx, id)
 	if !found {
-		return fmt.Errorf("htlc not found")
+		return types.ErrHTLCNotFound
 	}
 	if htlc.Claimed {
-		return fmt.Errorf("htlc already claimed")
+		return types.ErrHTLCClaimed
 	}
 	if htlc.Refunded {
-		return fmt.Errorf("htlc already refunded")
+		return types.ErrHTLCRefunded
 	}
 	if !refunder.Equals(htlc.Sender) {
-		return fmt.Errorf("only sender can refund")
+		return types.ErrUnauthorizedRefunder
 	}
 	if ctx.BlockTime().Before(htlc.TimeLock) {
-		return fmt.Errorf("htlc not expired")
+		return types.ErrHTLCNotExpired
 	}
 
 	htlc.Refunded = true
@@ -134,8 +172,18 @@ func (k Keeper) RefundHTLC(ctx sdk.Context, id uint64, refunder sdk.AccAddress) 
 
 	// refund coins to sender
 	if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, htlc.Sender, htlc.Amount); err != nil {
-		return fmt.Errorf("failed to refund coins to sender: %w", err)
+		return err
 	}
+
+	// Emit event
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			EventTypeRefundHTLC,
+			sdk.NewAttribute(AttributeKeyHTLCID, fmt.Sprintf("%d", id)),
+			sdk.NewAttribute(AttributeKeySender, refunder.String()),
+			sdk.NewAttribute(AttributeKeyAmount, htlc.Amount.String()),
+		),
+	)
 
 	return nil
 }

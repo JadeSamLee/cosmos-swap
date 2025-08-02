@@ -1,87 +1,180 @@
-# HTLC Module Deployment and Testing Instructions
+# HTLC Module
 
-This document provides instructions to deploy and test the HTLC (Hashed Timelock Contract) module on existing Cronos testnet and Sepolia testnet.
+## Overview
 
-## Deployment
+The HTLC (Hashed Time-Locked Contract) module implements atomic swap functionality using HTLCs (Hashed Time-Locked Contracts). This module allows users to create, claim, and refund HTLCs for cross-chain atomic swaps.
 
-1. **Build and Deploy the Module**
+## Contents
 
-   - Integrate the `x/htlc` module into your Cronos chain codebase.
-   - Add the module to the app's module manager and wiring.
-   - Build the chain binary and deploy it to your testnet nodes.
-   - Update the genesis file to include the HTLC module's genesis state.
+- [Concepts](#concepts)
+- [State](#state)
+- [Messages](#messages)
+  - [MsgCreateHTLC](#msgcreatehtlc)
+  - [MsgClaimHTLC](#msgclaimhtlc)
+  - [MsgRefundHTLC](#msgrefundhtlc)
+- [Events](#events)
+- [CLI](#cli)
+  - [Transactions](#transactions)
+  - [Queries](#queries)
 
-2. **Upgrade the Chain**
+## Concepts
 
-   - Perform a chain upgrade with the new binary including the HTLC module.
-   - Ensure the module is properly initialized on chain start.
+The HTLC module implements the Hashed Time-Locked Contract (HTLC) pattern, which is a critical component for cross-chain atomic swaps. It allows two parties to create a time-locked contract where one party can lock funds with a hash lock, and the counterparty can claim the funds by providing the preimage of the hash.
 
-## Testing HTLC Functionality
+### How it works
 
-You can interact with the HTLC module using the CLI commands provided.
+1. Alice wants to swap tokens with Bob.
+2. Alice creates an HTLC, locking her tokens with a hash lock (H) and a time lock.
+3. Bob can claim the funds by providing the preimage of the hash (h) such that H = Hash(h).
+4. If Bob doesn't claim in time, Alice can refund after the time lock expires.
 
-### CLI Commands
+## State
 
-Assuming you have the CLI binary (e.g., `cronosd`) with the HTLC module commands registered:
+### HTLC
 
-- **Create HTLC**
+- HTLC: `0x01 | BigEndian(id) -> ProtocolBuffer(HTLC)`
 
-  ```bash
-  cronosd tx htlc create-htlc <receiver_address> <amount> <hashlock> <timelock> --from <sender_key> --chain-id <chain_id> --gas auto --fees <fees>
-  ```
+## Messages
 
-  - `receiver_address`: Bech32 address of the receiver.
-  - `amount`: Amount to lock, e.g., `100cro`.
-  - `hashlock`: SHA256 hash of the secret preimage (hex encoded).
-  - `timelock`: Unix timestamp (seconds) after which refund is possible.
+### `MsgCreateHTLC`
 
-- **Claim HTLC**
+Allows creating a new HTLC.
 
-  ```bash
-  cronosd tx htlc claim-htlc <htlc_id> <preimage> --from <receiver_key> --chain-id <chain_id> --gas auto --fees <fees>
-  ```
+```protobuf
+rpc CreateHTLC(MsgCreateHTLC) returns (MsgCreateHTLCResponse);
+```
 
-  - `htlc_id`: ID of the HTLC to claim.
-  - `preimage`: Secret preimage that hashes to the hashlock.
+**State Modifications**
+- Creates a new HTLC with a unique ID
+- Transfers tokens from the sender to the module account
+- Emits Event `create_htlc`
 
-- **Refund HTLC**
+**State Modifications**
+- Appends a new HTLC to the state
+- Updates the next HTLC ID
 
-  ```bash
-  cronosd tx htlc refund-htlc <htlc_id> --from <sender_key> --chain-id <chain_id> --gas auto --fees <fees>
-  ```
+**Expected Keepers/Assumptions**
+- The sender has sufficient balance to cover the amount to be locked
+- The time lock is in the future
 
-  - `htlc_id`: ID of the HTLC to refund.
+### `MsgClaimHTLC`
 
-### Example Workflow
+Allows claiming an existing HTLC by providing the preimage of the hash lock.
 
-1. Generate a secret and compute its SHA256 hash.
+```protobuf
+rpc ClaimHTLC(MsgClaimHTLC) returns (MsgClaimHTLCResponse);
+```
 
-2. Create an HTLC locking funds with the hashlock and timelock.
+**State Modifications**
+- Marks the HTLC as claimed
+- Transfers tokens to the receiver
 
-3. The receiver claims the HTLC by providing the preimage before timelock expiry.
+**Expected Keepers/Assumptions**
+- The preimage must be the preimage of the hash lock
+- The claimer is the receiver of the HTLC
+- The HTLC has not been claimed or refunded
+- The HTLC has not expired
 
-4. If the receiver does not claim in time, the sender refunds the HTLC after timelock.
+### `MsgRefundHTLC`
 
-## Notes
+Allows refunding an HTLC after the time lock has expired.
 
-- Ensure your CLI is configured to connect to the correct testnet RPC endpoint.
+```protobuf
+rpc RefundHTLC(MsgRefundHTLC) returns (MsgRefundHTLCResponse);
+```
 
-- Adjust gas and fees according to the network requirements.
+**State Modifications**
+- Marks the HTLC as refunded
+- Transfers tokens back to the sender
 
-- Use appropriate keys/accounts with sufficient funds for testing.
+**Expected Keepers/Assumptions**
+- The refunder is the original sender of the HTLC
+- The HTLC has not been claimed or refunded
+- The HTLC has expired
 
-## Sepolia Testnet
+## Events
 
-- Use the Sepolia chain ID and RPC endpoints.
+- `create_htlc`
+  - Emitted when a new HTLC is created
+  - Keys: "create_htlc"
+  - Attributes:
+    - "sender": The address of the account that created the HTLC
+    - "receiver": The address of the account that can claim the HTLC
+    - "htlc_id": The ID of the HTLC
+    - "amount": The amount of coins locked in the HTLC
+    - "hash_lock": The hash lock of the HTLC
+    - "time_lock": The time lock of the HTLC
 
-- Ensure the HTLC module is deployed and enabled on Sepolia.
+- `claim_htlc`
+  - Emitted when an HTLC is claimed
+  - Keys: "claim_htlc"
+  - Attributes:
+    - "htlc_id": The ID of the HTLC
+    - "receiver": The address of the account that claimed the HTLC
+    - "amount": The amount of coins claimed
 
-## Cronos Testnet
+- `refund_htlc`
+  - Emitted when an HTLC is refunded
+  - Keys: "refund_htlc"
+  - Attributes:
+    - "htlc_id": The ID of the HTLC
+    - "sender": The address of the account that created the HTLC
+    - "amount": The amount of coins refunded
 
-- Use the Cronos testnet chain ID and RPC endpoints.
+## CLI
 
-- Ensure the HTLC module is deployed and enabled on Cronos testnet.
+### Transactions
 
----
+#### create-htlc
 
-For any issues or further assistance, please reach out with your specific setup details.
+Create a new HTLC.
+
+```text
+create-htlc [receiver] [amount] [hashlock] [timelock]
+```
+
+Example:
+`create-htlc cosmos1... 1000stake 0x1234567890abcdef... 1620000000`
+
+#### claim-htlc
+
+Claim an HTLC by providing the preimage.
+
+```text
+claim-htlc [htlc-id] [preimage]
+```
+
+Example:
+`claim-htlc 1 0xabcdef1234567890...`
+
+#### refund-htlc
+
+Refund an HTLC after the time lock has expired.
+
+```text
+refund-htlc [htlc-id]
+```
+
+Example:
+`refund-htlc 1`
+
+### Queries
+
+#### list-htlcs
+
+List all HTLCs.
+
+```text
+list-htlcs
+```
+
+#### show-htlc
+
+Show details of a specific HTLC by ID.
+
+```text
+show-htlc [id]
+```
+
+Example:
+`show-htlc 1`

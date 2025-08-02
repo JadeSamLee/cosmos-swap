@@ -6,9 +6,9 @@ import (
 	"github.com/crypto-org-chain/cronos/v2/x/htlc/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/types/query"
 )
-
-type queryServer struct {
 	Keeper
 }
 
@@ -20,7 +20,7 @@ func (q queryServer) HTLC(c context.Context, req *types.QueryGetHTLCRequest) (*t
 	ctx := sdk.UnwrapSDKContext(c)
 	htlc, found := q.GetHTLC(ctx, req.Id)
 	if !found {
-		return nil, sdkerrors.Wrapf(sdkerrors.ErrKeyNotFound, "htlc %d not found", req.Id)
+		return nil, types.ErrHTLCNotFound
 	}
 	return &types.QueryGetHTLCResponse{HTLC: htlc}, nil
 }
@@ -28,7 +28,7 @@ func (q queryServer) HTLC(c context.Context, req *types.QueryGetHTLCRequest) (*t
 func (q queryServer) HTLCs(c context.Context, req *types.QueryListHTLCsRequest) (*types.QueryListHTLCsResponse, error) {
 	ctx := sdk.UnwrapSDKContext(c)
 	store := ctx.KVStore(q.storeKey)
-	iterator := prefix.NewStore(store, types.KeyPrefixHTLC)
+	iterator := sdk.KVStorePrefixIterator(store, []byte(types.KeyPrefixHTLC))
 	defer iterator.Close()
 
 	var htlcs []types.HTLC
