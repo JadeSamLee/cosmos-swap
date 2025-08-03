@@ -1,0 +1,36 @@
+[workspace]
+members = [
+    "contracts/source_escrow",
+    "contracts/destination_escrow", 
+    "contracts/escrow_factory",
+    "contracts/escrow_resolver",
+    "contracts/dutch_auction",
+    "contracts/partial_fill",
+    "contracts/ibc_bridge_adapter",
+    "packages/*"
+]
+
+[workspace.dependencies]
+cosmwasm-std = "1.5.0"
+cosmwasm-storage = "1.5.0"
+cw-storage-plus = "1.2.0"
+cw2 = "1.1.0"
+cw20 = "1.1.0"
+cw20-base = "1.1.0"
+schemars = "0.8.10"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+thiserror = { version = "1.0.23" }
+cw-utils = "1.0.1"
+cw-multi-test = "0.16.2"
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
+
