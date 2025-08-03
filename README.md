@@ -1,4 +1,4 @@
-# InterchainX: Cross-Chain Atomic Swap Bridge (Cronos ↔ Ethereum)
+# InterchainX: Cross-Chain Atomic Swap powered by 1inch
 
 ## Table of Contents
 
@@ -79,6 +79,7 @@ InterchainX operates on a two-sided escrow model, where assets are locked on bot
 
 ## 4. Workflow
 
+<img width="1131" height="779" alt="image" src="https://github.com/user-attachments/assets/bde7e7a8-785e-4463-822a-5a2aaf90947a" />
 
 
 ## 5. Getting Started
