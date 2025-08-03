@@ -1,0 +1,28 @@
+# Use the official rust-optimizer image as a base
+FROM cosmwasm/rust-optimizer:0.12.6
+
+# Set the working directory inside the container
+WORKDIR /code
+
+# Copy the entire cosmwasm-contracts directory into the container
+# This includes all contracts and the workspace Cargo.toml
+COPY cosmwasm-contracts /code/cosmwasm-contracts
+
+# Set the working directory to the cosmwasm-contracts root
+WORKDIR /code/cosmwasm-contracts
+
+# Build all contracts in the workspace
+# The rust-optimizer image provides `cargo-generate` and `rust-optimizer`
+# which are used for optimized WASM builds.
+# This command will build all contracts defined in the workspace Cargo.toml
+# and place the optimized .wasm files in their respective `artifacts` directories.
+RUN cargo optimize
+
+# You can optionally add a step to copy the artifacts out of the container
+# For example, to a specific directory on your host machine after building:
+# VOLUME /code/artifacts
+# CMD cp -r /code/cosmwasm-contracts/artifacts /output
+
+# This Dockerfile is primarily for building the optimized WASM binaries.
+# To run tests or other development tasks, you might use a different Dockerfile
+# or run commands directly in a development container based on a Rust image.
