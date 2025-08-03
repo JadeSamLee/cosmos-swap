@@ -1,0 +1,153 @@
+# Cronos-Ethereum Bridge Relayer Configuration Template
+# Copy this file to config.yaml and update with your values
+
+# Cronos blockchain configuration
+cronos:
+  chain_id: "cronostestnet_338-3"
+  rpc_endpoint: "https://evm-t3.cronos.org"
+  websocket_endpoint: "wss://evm-t3.cronos.org/websocket"
+  private_key: "YOUR_CRONOS_PRIVATE_KEY"  # Replace with your private key
+  gas_limit: 300000
+  gas_price: "5000000000000"  # 5000 gwei in wei
+  
+# Ethereum blockchain configuration  
+ethereum:
+  chain_id: "11155111"  # Sepolia testnet
+  rpc_endpoint: "https://sepolia.infura.io/v3/YOUR_INFURA_KEY"  # Replace with your RPC URL
+  websocket_endpoint: "wss://sepolia.infura.io/ws/v3/YOUR_INFURA_KEY"
+  private_key: "YOUR_ETHEREUM_PRIVATE_KEY"  # Replace with your private key
+  gas_limit: 500000
+  gas_price: "20000000000"  # 20 gwei in wei
+
+# Contract addresses (will be updated by deployment scripts)
+contracts:
+  cronos:
+    escrow_factory: "CRONOS_ESCROW_FACTORY_ADDRESS"
+    resolver: "CRONOS_RESOLVER_ADDRESS"
+    dutch_auction: "CRONOS_DUTCH_AUCTION_ADDRESS"
+  ethereum:
+    escrow_factory: "ETHEREUM_ESCROW_FACTORY_ADDRESS"
+    resolver: "ETHEREUM_RESOLVER_ADDRESS"
+    ibc_handler: "ETHEREUM_IBC_HANDLER_ADDRESS"
+    limit_order_protocol: "ETHEREUM_LOP_ADDRESS"
+
+# Relayer service configuration
+relayer:
+  # How often to poll for new blocks
+  block_poll_interval: "10s"
+  
+  # How often to update order status
+  order_update_interval: "30s"
+  
+  # Maximum number of concurrent order processing
+  max_concurrent_orders: 10
+  
+  # Retry configuration
+  max_retries: 3
+  retry_delay: "30s"
+  
+  # API server configuration
+  api:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8080
+    cors_enabled: true
+  
+  # Metrics configuration
+  metrics:
+    enabled: true
+    host: "0.0.0.0"
+    port: 9090
+
+# Dutch auction configuration
+dutch_auction:
+  # How often to update auction prices
+  price_update_interval: "60s"
+  
+  # Maximum auction duration
+  max_auction_duration: "24h"
+  
+  # Minimum price decay rate (to prevent too aggressive pricing)
+  min_decay_rate: "1000000000000000"  # 0.001 ETH per second
+  
+  # Maximum price decay rate
+  max_decay_rate: "100000000000000000"  # 0.1 ETH per second
+
+# Partial fill configuration
+partial_fill:
+  # Minimum fill amount as percentage of total order
+  min_fill_percentage: 5  # 5%
+  
+  # Maximum number of partial fills per order
+  max_fills_per_order: 10
+
+# IBC configuration
+ibc:
+  # Default timeout for IBC packets (in seconds)
+  default_timeout: 3600  # 1 hour
+  
+  # Channel configuration
+  channels:
+    cronos_to_ethereum: "channel-0"
+    ethereum_to_cronos: "channel-0"
+
+# Logging configuration
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "json"  # json, text
+  output: "stdout"  # stdout, file
+  file_path: "/var/log/relayer.log"  # only used if output is "file"
+
+# Database configuration (optional - for persistent storage)
+database:
+  enabled: false
+  type: "sqlite"  # sqlite, postgres
+  connection_string: "relayer.db"
+  # For PostgreSQL:
+  # connection_string: "postgres://user:password@localhost/relayer?sslmode=disable"
+
+# Security configuration
+security:
+  # Enable rate limiting
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+  
+  # Enable request signing verification
+  verify_signatures: true
+  
+  # Allowed origins for CORS (if API CORS is enabled)
+  cors_origins:
+    - "http://localhost:3000"
+    - "https://your-frontend-domain.com"
+
+# Monitoring and alerting
+monitoring:
+  # Health check configuration
+  health_check:
+    enabled: true
+    interval: "30s"
+    timeout: "10s"
+  
+  # Alert thresholds
+  alerts:
+    # Alert if order processing takes longer than this
+    slow_order_threshold: "5m"
+    
+    # Alert if relayer balance falls below this (in ETH/CRO)
+    low_balance_threshold: "0.1"
+    
+    # Alert if error rate exceeds this percentage
+    error_rate_threshold: 5
+
+# Development/testing configuration
+development:
+  # Enable debug endpoints
+  debug_endpoints: false
+  
+  # Mock external services (for testing)
+  mock_services: false
+  
+  # Dry run mode (don't actually send transactions)
+  dry_run: false
+
